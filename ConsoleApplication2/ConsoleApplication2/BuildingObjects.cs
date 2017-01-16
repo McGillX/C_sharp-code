@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,6 +10,31 @@ namespace ConsoleApplication2
 {
     public static class BuildingObjects
     {
+
+        internal static Dictionary<string, BaseCourseModule> BuildCourseModuleObjects(string path)
+        {
+            //string path = "C:\\Users\\mlyman2\\Documents\\Edx\\Research\\DecryptedEdxDownloads\\McGillX-ATOC185x-1T2016-course_structure-prod-analytics.json";
+            string json = System.IO.File.ReadAllText(path);
+            Dictionary<string, BaseCourseModule> values = JsonConvert.DeserializeObject<Dictionary<string, BaseCourseModule>>(json);
+            foreach (KeyValuePair<string, BaseCourseModule> entry in values)
+            {
+                string s = entry.Key;
+                entry.Value.id = s;
+                //ungraded sequentials are actually not graded (not null graded)
+                if (entry.Value.category.Equals("sequential") && entry.Value.mData.graded == null)
+                    entry.Value.mData.graded = false;
+
+                string[] childIDs = entry.Value.children;
+                foreach(string c in childIDs)
+                {
+                    //shouldn't be needed, but there are some children that don't point to anything, so here it is!
+                    if(values.ContainsKey(c))
+                        values[c].parentID = s; //sets the parent of each child to be this id.
+                }
+            }
+
+            return values;
+        }
         internal static ProblemCheck BuildTrackingObjectProblem(string line)
         {
             ProblemCheck results = null;
@@ -160,6 +186,42 @@ namespace ConsoleApplication2
 
             MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
             VideoLoad dataObject = serializer.ReadObject(ms) as VideoLoad;
+            return dataObject;
+        }
+
+        internal static PollSubmit BuildTrackingObjectPollEvent(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(PollSubmit));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            PollSubmit dataObject = serializer.ReadObject(ms) as PollSubmit;
+            return dataObject;
+        }
+
+        internal static BasicTeam BuildTrackingObjectTeamEvent(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(BasicTeam));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            BasicTeam dataObject = serializer.ReadObject(ms) as BasicTeam;
+            return dataObject;
+        }
+
+        internal static CommentEntry BuildMongoObjectComment(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(CommentEntry));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            CommentEntry dataObject = serializer.ReadObject(ms) as CommentEntry;
+            return dataObject;
+        }
+
+        internal static ThreadEntry BuildMongoObjectThread(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(ThreadEntry));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            ThreadEntry dataObject = serializer.ReadObject(ms) as ThreadEntry;
             return dataObject;
         }
 

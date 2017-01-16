@@ -45,36 +45,37 @@ namespace ConsoleApplication2
             \\   A backslash (“\”) character.
             \%   A “%” character. See note following the table.
             \_   A “_” character. See note following the table.*/
-            input = input.Replace("\\", "\\\\");
-            input = input.Replace("'", "\\'");
-            input = input.Replace("\"", "\\\"");
-            input = input.Replace("%", "\\%");
-            input = input.Replace("_", "\\_");
+            if (input == null)
+                return input;
+            input = input.Replace("\\", "");
+            input = input.Replace("'", "");
+            input = input.Replace("\"", "");
+            input = input.Replace("%", "");
+            input = input.Replace("_", "");
 
             return input;
         }
 
 
-        internal static List<Course> SetUpCourses()
+        internal static void AddRowToCourseModuleTable(MySqlConnection mcon, BaseCourseModule log)
         {
-            List<Course> allCourses = new List<Course>();
+            string tableName = "Course_Module";
+            string query = "INSERT INTO " + tableName + "(id, category, display_name, start_date, end_date, due_date, format, graded, parent_course_module_id)";
 
-            //allCourses.Add(new Course("CHEM181x", "1T2014", 2014));
-            //allCourses.Add(new Course("CHEM181x", "3T2014", 2014));
-
-            /* allCourses.Add(new Course("GROOCx", "T3_2015", 2015));
-
-             allCourses.Add(new Course("CHEM181x", "3T2015", 2015));
-             allCourses.Add(new Course("CHEM181x", "3T2016", 2016));*/ //<- Course hasn't happened yet!
-
-            // allCourses.Add(new Course("ATOC185x", "2T2014", 2014));
-            // allCourses.Add(new Course("ATOC185x", "1T2015", 2015));
-            //allCourses.Add(new Course("ATOC185x", "1T2016", 2016, "2016-01-13")); //Start date: Weds, Jan 13, 2016 2016-01-13
-
-            //allCourses.Add(new Course("Body101x", "1T2015", 2015, "2015-02-25", "2015-05-06")); //also ends may 6
-            allCourses.Add(new Course("Body101x", "1T2016", 2016, "2016-02-10", "2016-05-06")); //ends may 6
-
-            return allCourses;
+            string displayName = EscapeAllSpecialChars(log.mData.displayName);
+            //condition ? first_expression : second_expression;  
+            string start = log.mData.start == null ? "NULL" : "'" + log.mData.start.Split('Z')[0] + "'";
+            string end = log.mData.end == null ? "NULL" : "'" + log.mData.end.Split('Z')[0] + "'";
+            string due = log.mData.due == null ? "NULL" : "'"+log.mData.due.Split('Z')[0]+"'";
+            string graded = log.mData.graded == null ? "NULL" : log.mData.graded.ToString();
+            string parent = log.parentID == null ? "NULL" : "'" + log.parentID.ToString() + "'";
+            query += "VALUES('" + log.id + "', '" + log.category + "', '" + displayName + "', "+ start +", " + 
+                end + ", " + due + ", '" + log.mData.format + "', " + graded + ", " + parent+ ");";
+            
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
         }
 
         internal static void AddRowToQuestionSubmissionTable(MySqlConnection mcon, ProblemCheck log)
@@ -153,8 +154,7 @@ namespace ConsoleApplication2
                 string body = qd.question_text.Replace("'", "''");
 
                 query += "VALUES('" + qd.id + "', '" + qd.input_type + "', '" + qd.response_type + "', '" + body + "', '" + qd.problem_id + "');";
-                //Console.WriteLine(query);
-                //Console.ReadLine();
+                
                 try
                 {
                     MySqlCommand cmd = new MySqlCommand(query, mcon);
@@ -174,8 +174,7 @@ namespace ConsoleApplication2
 
                 query += "VALUES('" + pd.id + "', '" + pd.path + "', '" + pd.course_id + "', " + pd.maxGrade +
                            ", '" + pd.module_id + "', '" + pd.display_name + "');";
-                //Console.WriteLine(query);
-                //Console.ReadLine();
+               
                 try
                 {
                     MySqlCommand cmd = new MySqlCommand(query, mcon);
@@ -191,7 +190,9 @@ namespace ConsoleApplication2
             string query = "INSERT INTO " + tableName + "(event_type, time_event_emitted, query, total_results, corrected_text, user_id, course_id)";
             int id = 0;
             string q = log.eventField.query.Replace("\"", "");
-            q = q.Replace("'", "");
+            //q = q.Replace("'", "");
+            q = EscapeAllSpecialChars(q);
+            log.eventField.corrected_text = EscapeAllSpecialChars(log.eventField.corrected_text);
             int.TryParse(log.context.userID, out id);
             if (log.context.courseID == null || log.context.courseID.Length < 5 || id == 0 || log.eventField == null || log.eventField.query == null || !(log.event_type.Equals("edx.forum.searched")))
             {
@@ -211,12 +212,16 @@ namespace ConsoleApplication2
         internal static void AddRowToForumCreatedTable(MySqlConnection mcon, DiscussionText log)
         {
             string tableName = "forum_text_created";
-            string query = "INSERT INTO " + tableName + "(id, event_type, anonymous, anonymous_to_peers, body, category_id, category_name, followed, thread_type, title, user_course_role, user_forum_role, response_id, discussion_id, time_event_emitted, user_id, team_id, course_id)";
+            string query = "INSERT INTO " + tableName + "(edx_id, event_type, anonymous, anonymous_to_peers, body, category_id, category_name, followed, thread_type, title, user_course_role, user_forum_role, response_id, discussion_id, time_event_emitted, user_id, team_id, course_id)";
             int id = 0;
             int anonToPeer = 0;
             int anon = 0;
+            if(log.eventField.title!=null)
+                log.eventField.title = EscapeAllSpecialChars(log.eventField.title);
             string body = log.eventField.body.Replace("\"", "");
             body = body.Replace("'", "");
+            body = EscapeAllSpecialChars(body);
+            log.eventField.category_name = EscapeAllSpecialChars(log.eventField.category_name);
             int followed = 0;
             if (log.eventField.anonymous == true)
                 anon = 1;
@@ -224,6 +229,17 @@ namespace ConsoleApplication2
                 anonToPeer = 1;
             if (log.eventField.option.followed == true)
                 followed = 1;
+            if (log.eventField.user_course_roles == null || log.eventField.user_course_roles.Length == 0)
+            {
+                log.eventField.user_course_roles = new string[1];
+                log.eventField.user_course_roles[0] = "";
+            }
+            if(log.eventField.user_forum_roles == null || log.eventField.user_forum_roles.Length == 0)
+            {
+                log.eventField.user_forum_roles = new string[1];
+                log.eventField.user_forum_roles[0] = "";
+            }
+                
             int.TryParse(log.context.userID, out id);
             if (log.context.courseID == null || log.context.courseID.Length < 5 || id == 0 || log.eventField == null || log.eventField.body == null || !(log.event_type.Equals("edx.forum.response.created") || log.event_type.Equals("edx.forum.thread.created") || log.event_type.Equals("edx.forum.comment.created")))
             {
@@ -353,9 +369,168 @@ namespace ConsoleApplication2
             cmd.ExecuteNonQuery();
         }
 
+        internal static void AddRowToPollSubmitTable(MySqlConnection mcon, PollSubmit log)
+        {
+            string tableName = "poll_submissions";
+            string query = "INSERT INTO " + tableName + "(user_id, course_id, choice, display_name, url_name, usage_key, time_event_emitted, path)";
+            int id = 0;
+            string displayName = "";
+            int.TryParse(log.context.userID, out id);
+            if (log.context.courseID == null || log.context.courseID.Length < 5 || id == 0 )
+            {
+                throw new Exception();
+                //invalid log entry. (bad course id, or bad user id)
+            }
+            else
+            {
+                displayName = EscapeAllSpecialChars(log.context.module.displayName); //make sure the name is okay to be inserted.
+                query += "VALUES(" + log.context.userID + ", '" + log.context.courseID + "', '" + log.pollEvent.choice + "', '" +  
+                    displayName + "', '" + log.pollEvent.urlName + "', '" + log.context.module.key + "', '" + log.time.Split('+')[0] + "', '" + log.context.path + "');";
+            }
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+        internal static void AddRowToBasicTeamTable(MySqlConnection mcon, BasicTeam log)
+        {
+            string tableName = "basic_team_logs";
+            string query = "INSERT INTO " + tableName + "(course_id, user_id, team_id, time_event_emitted, event_type, page_url)";
+            int id = 0;
+            string displayName = "";
+            int.TryParse(log.teamContext.userID, out id);
+            if (log.teamContext.courseID == null || log.teamContext.courseID.Length < 5 || id == 0)
+            {
+                throw new Exception();
+                //invalid log entry. (bad course id, or bad user id)
+            }
+            else
+            {
+                query += "VALUES('" + log.teamContext.courseID + "', " + log.teamContext.userID + ", '" + log.teamEvent.team_id + "', '" +
+                     log.time.Split('+')[0] + "', '" + log.event_type + "', '"+ log.teamContext.path + "');";
+            }
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+        internal static void AddRowToDiscussionThreadTable(MySqlConnection mcon, ThreadEntry log)
+        {
+            string tableName = "discussion_thread";
+            string query = "INSERT INTO " + tableName + "(id, closed, last_activity_at, commentable_id, title, thread_type, course_id)";
+            string title =  EscapeAllSpecialChars(log.title); //make sure the title is okay to be inserted.
+
+            query += "VALUES('" + log.id.id + "', " + log.closed + ", '" + log.last_activity_at.date.Split('Z')[0] + "', '" 
+                + log.commentable_id + "', '" + title + "', '" + log.thread_type + "', '" + log.courseID + "');";
+           
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+        internal static void AddRowToDiscussionPostTable(MySqlConnection mcon, DiscussionPostShared log)
+        {
+            string tableName = "discussion_post";
+            string type = "comment";
+            string body = EscapeAllSpecialChars(log.body); //make sure the body is okay to be inserted.
+            string query = "INSERT INTO " + tableName + "(id, user_id, anonymous, anonymous_to_peers, body, created_at, updated_at, endorsed, parent_id, thread_id, type)";
+            string update = "null";
+            if (log.updated_at.date != null)
+                update = log.updated_at.date.Split('Z')[0];
+
+            if (log is CommentEntry)
+            {
+                CommentEntry logAsComment = (CommentEntry)log;
+                if (logAsComment.comment_parent_id == null || logAsComment.comment_parent_id.id == null || logAsComment.comment_parent_id.id.Length < 1)
+                {
+                    try
+                    {
+                        type = "response";
+                        query += "VALUES('" + log.id.id + "', " + log.user_id + ", " + log.anonymous + ", " + log.anonymous_to_peers + ", '" + body
+                        + "', '" + log.created_at.date.Split('Z')[0] + "', '" + update + "', " + logAsComment.endorsed + ", null , '" + logAsComment.threadID.id + "', '" + type + "');";
+                    }catch(NullReferenceException e)
+                    {
+                        Console.WriteLine(log);
+                        Console.ReadLine();
+                    }
+                    
+                }
+                else
+                {
+                    query += "VALUES('" + log.id.id + "', " + log.user_id + ", " + log.anonymous + ", " + log.anonymous_to_peers + ", '" + body
+                    + "', '" + log.created_at.date.Split('Z')[0] + "', '" + update + "', " + logAsComment.endorsed + ", '" + logAsComment.comment_parent_id.id + "', '" + logAsComment.threadID.id + "', '" + type + "');";
+                }
+                try
+                {
+                    MySqlCommand cmd = new MySqlCommand(query, mcon);
+                    cmd.ExecuteNonQuery();
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                    Console.WriteLine(log);
+                    Console.ReadLine();
+                }
+                if (logAsComment.endorsed)
+                {
+                    //add to endorsement table
+                    if(logAsComment.endorsement!= null)
+                        AddRowToDiscussionEndorsementTable(mcon, logAsComment);
+                    else
+                    {
+                        Program.WriteLogToFile(999, 0, log.id.id, 0, new NullReferenceException(), "nullEndorsements");
+                    }
+                }
+
+            }
+            else if(log is ThreadEntry)
+            {
+                type = "thread";
+                query += "VALUES('" + log.id.id + "', " + log.user_id + ", " + log.anonymous + ", " + log.anonymous_to_peers + ", '" + body
+                    + "', '" + log.created_at.date.Split('Z')[0] + "', '" + update + "', " + false + ", null, '" + log.id.id + "', '" + type + "');";
+                MySqlCommand cmd = new MySqlCommand(query, mcon);
+                cmd.ExecuteNonQuery();
+            }
+            if(log.voters!=null && log.voters.upIds!=null && log.voters.upIds.Length>0)
+            {
+                foreach(int userID in log.voters.upIds)
+                {
+                    AddRowToDiscussionVoteTable(mcon, log, userID);
+                }
+            }
+           
+        }
+
+        internal static void AddRowToDiscussionEndorsementTable(MySqlConnection mcon, CommentEntry log)
+        {
+            string tableName = "discussion_endorsement";
+            string query = "INSERT INTO " + tableName + "(reply_id, endorsed_at, endorsed_by)";
+            query += "VALUES('" + log.id.id + "', '" + log.endorsement.endorsed_at.date.Split('Z')[0] + "', " + log.endorsement.user_id + ");";
+
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+        internal static void AddRowToDiscussionVoteTable(MySqlConnection mcon, DiscussionPostShared log, int voterID)
+        {
+            string tableName = "discussion_vote";
+            string query = "INSERT INTO " + tableName + "(post_id, user_id)";
+            query += "VALUES('" + log.id.id + "', " + voterID + ");";
+
+            //Console.WriteLine(query);
+            //Console.ReadLine();
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
         internal static void AddRowToTable(MySqlConnection mcon, TrackingLogWithContext log)
         {
-            string tableName = "all_logs";
+            string tableName = "log_dump"; //updated for new version of the all_logs table.
             string query = "";
             int id = 0;
             int.TryParse(log.context.userID, out id);
@@ -368,17 +543,17 @@ namespace ConsoleApplication2
             else if (log.page != null && id != 0)
             {
                 query = "INSERT INTO " + tableName + "(course_id, user_id, time_event_emitted, event_type, page_url) ";
-                query += "VALUES('" + log.context.courseID + "', " + id + ", '" + log.time + "', '" + log.event_type + "', '" + log.page + "');";
+                query += "VALUES('" + log.context.courseID + "', " + id + ", '" + log.time.Split('+')[0] + "', '" + log.event_type + "', '" + log.page + "');";
             }
             else if (id != 0)
             {
                 query = "INSERT INTO " + tableName + "(course_id, user_id, time_event_emitted, event_type) ";
-                query += "VALUES('" + log.context.courseID + "', " + id + ", '" + log.time + "', '" + log.event_type + "');";
+                query += "VALUES('" + log.context.courseID + "', " + id + ", '" + log.time.Split('+')[0] + "', '" + log.event_type + "');";
             }
             else
             {
                 query = "INSERT INTO " + tableName + "(course_id, time_event_emitted, event_type) ";
-                query += "VALUES('" + log.context.courseID + "', '" + log.time + "', '" + log.event_type + "');";
+                query += "VALUES('" + log.context.courseID + "', '" + log.time.Split('+')[0] + "', '" + log.event_type + "');";
             }
             //Console.WriteLine(query);
             //Console.ReadLine();

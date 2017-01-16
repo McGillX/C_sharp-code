@@ -48,8 +48,8 @@ namespace ConsoleApplication2
         public string category_id;
         [DataMember(Name = "category_name")]
         public string category_name;
-        [DataMember(Name = "id", IsRequired = true)]
-        public string id; //note: this is the pkey. Field is required.
+        [DataMember(Name = "id")]
+        public string id; 
         [DataMember(Name = "options")]
         public DiscussionOptions option; //only contrains the followed attribute. bad design
         [DataMember(Name = "user_course_roles")]

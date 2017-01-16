@@ -15,45 +15,152 @@ namespace ConsoleApplication2
         Discussion - forum_searched, forum_text_created, forum_text_voted
         Video - all video logs (cc, transcript, seek, play, etc). ->fixed for 2013, 2014...
         Problem_Submissions - for now, just problem_check
-        Problem_Submissions
+        Problem_Definitions - do this before submissions :)
+        Polls - for polls and surveys submission. - done
+        Team - for team events. 
         All - populate all tables at once (not implemented)
         */
-        private static string EVENT_TYPE = "Video";
+        private static string EVENT_TYPE = "Problem_Submissions";
         internal static HashSet<ProblemDefinition> allProblems = new HashSet<ProblemDefinition>();
         internal static HashSet<QuestionDefinition> allQuestions = new HashSet<QuestionDefinition>();
 
         public static void Main(string[] args)
         {
-            MySqlConnection cnn = Connect();
+
+            //MySqlConnection cnn = Connect();
             //SetUpTrackingLogs();
+            //ReadDiscussionDump("C:\\Users\\mlyman2\\Documents\\Edx\\Research\\DiscussionLogDumps");
+            ReadCourseStructures("C:\\Users\\mlyman2\\Documents\\Edx\\Research\\CourseStructureDumps");
             //String courseName = "Body101x";
             //createTrackingLogTableForCourse(cnn, "courseName");
             //populateTrackingLogTableForCourse(cnn, "courseName");
         }
 
+        //This reads in the *course_struction JSON files.
+        private static void ReadCourseStructures(string pathLocation)
+        {
+            MySqlConnection cnn = Connect();
+
+            string[] fnames = System.IO.Directory.GetFiles(pathLocation);
+            Array.Sort(fnames);
+            foreach (string fName in fnames)
+            {
+                Console.WriteLine(fName);
+                Dictionary<string, BaseCourseModule> courseModules = BuildingObjects.BuildCourseModuleObjects(fName);
+                BaseCourseModule root = null;
+                //add the root
+                foreach(KeyValuePair<string, BaseCourseModule> entry in courseModules)
+                {
+                    if (entry.Value.category.Equals("course"))
+                    {
+                        root = entry.Value;
+                        break;
+                    }          
+                }
+                //do bfs to add parents before children. 
+                Queue<BaseCourseModule> q = new Queue<BaseCourseModule>();
+                q.Enqueue(root);
+                while (q.Count != 0)
+                {
+                    BaseCourseModule next = q.Dequeue();
+                    foreach(string id in next.children)
+                    {
+                        if (courseModules.ContainsKey(id))
+                        {
+                            BaseCourseModule node = courseModules[id];
+                            q.Enqueue(node);
+                        }
+                    }
+                    AddToTable.AddRowToCourseModuleTable(cnn, next);
+                }
+            }
+        }
+
+        //This reads in the *prod.mongo discussion files.
+        private static void ReadDiscussionDump(string pathLocation)
+        {
+            MySqlConnection cnn = Connect();
+
+            int fileNum = 0;
+
+            string[] fnames = System.IO.Directory.GetFiles(pathLocation);
+            Array.Sort(fnames);
+            foreach (string fName in fnames)
+            {
+                if (!fName.Contains("McGillX-CHEM181x_3-3T2016"))
+                    continue;
+                int commentCount = 0, commentThreadCount = 0;
+                Console.WriteLine("file number: " + fileNum);
+                fileNum++;
+                string[] a = System.IO.File.ReadAllLines(fName);
+                //the lines are stored in *reverse* chronological order.
+                //reverse the array in order to avoid broken foreign key relationship
+                //(make sure the threads are inserted before the replies to the threads)
+                Array.Reverse(a); 
+                int lineNum = a.Length;
+
+                foreach (string theline in a)
+                {
+                    byte[] bytes = Encoding.Default.GetBytes(theline);
+                    string line = Encoding.UTF8.GetString(bytes);
+                    DiscussionPostShared entry = null;                  
+                    lineNum--;
+                    if (line.Contains("\"_type\":\"Comment\""))
+                    {
+                        commentCount++;
+                        //build comment object
+                        entry = BuildingObjects.BuildMongoObjectComment(line);
+                        /*Console.WriteLine("comment");
+                        Console.WriteLine(entry);
+                        Console.ReadLine();*/
+                        
+                    }   
+                    else if (line.Contains("\"_type\":\"CommentThread\""))
+                    {
+                        commentThreadCount++;
+                        //build thread object
+                        entry = BuildingObjects.BuildMongoObjectThread(line);
+                        AddToTable.AddRowToDiscussionThreadTable(cnn, (ThreadEntry)entry);
+                        /*Console.WriteLine("thread");
+                        Console.WriteLine(entry);
+                        Console.ReadLine();*/
+                    }
+                    else
+                    {
+                        throw new FormatException("Invalid type. Required: Comment or CommentThread on line "+ lineNum);
+                    }
+                    AddToTable.AddRowToDiscussionPostTable(cnn, entry);     
+                }
+                Console.WriteLine(fName);
+                //No Other count. Good. 
+                Console.WriteLine("Comment count " + commentCount + " thread count " + commentThreadCount);
+            }
+            Console.ReadLine();
+        }
+
         private static MySqlConnection Connect()
         {
             //update the connection string to contain the connection information for your database.
-            string connetionString = "Server=127.0.0.1; Database=McGillx; Uid=root; Pwd=**************;";
+            string connectionString = "Server=**********; Database=******; Uid=****; Pwd=****************;";
             MySqlConnection cnn;
-            cnn = new MySqlConnection(connetionString);
+            cnn = new MySqlConnection(connectionString);
             cnn.Open();
             return cnn;
         }
 
-        //this method will initialize the tracking logs for years 2015-2016 in the all_logs table.
+        //this method will initialize the tracking logs for years 2013-2016 in the all_logs table.
         //attributes pulled from the JSON are those listed in the TrackingLog class. 
-        //starts Jan 1 2015. 
         //end May 25 2016.
         private static void SetUpTrackingLogs()
         {
-            int[] years = { 2013, 2014, 2015, 2016 }; 
+            int[] years = { 2016, 2017 }; 
             int year;
             MySqlConnection cnn = null;
             try
             {
                 cnn = Connect();
                 Console.WriteLine("connection success!");
+                //Console.ReadLine();
             }
             catch (Exception ex)
             {
@@ -65,6 +172,7 @@ namespace ConsoleApplication2
             {
                 year = y;
                 Console.WriteLine("Year " + year);
+                //Console.ReadLine();
                 //2013, 2014 are stored differently. 
                 if (year > 2014)
                 {
@@ -90,11 +198,11 @@ namespace ConsoleApplication2
         {
             var a = System.IO.File.ReadLines(fileName); //its a big file, so dont load it all at once.
             int lineNum = 0;
-            
-            foreach (string line in a)
+
+            foreach (string theline in a)
             {
-                //if (fileNum == 230 && lineNum < 11233)
-                //    continue;
+                byte[] bytes = Encoding.Default.GetBytes(theline);
+                string line = Encoding.UTF8.GetString(bytes);
                 switch (EVENT_TYPE) {
                     case "None":
                         AllLogs(line, fileName, lineNum, cnn, fileNum, year);
@@ -109,10 +217,15 @@ namespace ConsoleApplication2
                     case "Problem_Submissions":
                         ProblemLogs(line, fileName, lineNum, cnn, fileNum, year);
                         break;
+                    case "Polls":
+                        PollLogs(line, fileName, lineNum, cnn, fileNum, year);
+                        break;
+                    case "Team":
+                        TeamLogs(line, fileName, lineNum, cnn, fileNum, year);
+                        break;
                 }
                 lineNum++;
             }
-            //Console.WriteLine("Number of problems found " + allProblems.Count);
         }
 
         private static void Pre2015Logs(int year, MySqlConnection cnn)
@@ -122,14 +235,13 @@ namespace ConsoleApplication2
 
             string[] fnames = System.IO.Directory.GetFiles(pathLocation);
             Array.Sort(fnames);
-
+            
             foreach (string fileName in fnames)
             {
                 Console.WriteLine("file number: " + fileNum);
                 Console.WriteLine("file name: " + fileName);
                 fileNum++;
-                //if (fileNum < 230)
-                //    continue;
+                
                 ReadFile(fileName, year, cnn, fileNum);
             }
         }
@@ -138,19 +250,98 @@ namespace ConsoleApplication2
         {
             int fileNum = 0;
             string pathLocation = "C:\\Users\\mlyman2\\Documents\\Edx\\Research\\decrypted-tracking-logs\\decrypted-tracking-logs\\" + year;
-
-            string[] subdirectoryEntries = System.IO.Directory.GetDirectories(pathLocation);
+                 string[] subdirectoryEntries = System.IO.Directory.GetDirectories(pathLocation);
             Array.Sort(subdirectoryEntries);
+            
             foreach (string dirName in subdirectoryEntries)
             {
                 string[] fnames = System.IO.Directory.GetFiles(dirName);
                 Console.WriteLine("file number: " + fileNum);
+                Console.WriteLine("file name: " + fnames[0]);
+             
                 fileNum++;
+                if (EVENT_TYPE.Equals("Team") && fileNum < 257 && year<=2015) //there are no team events before this point
+                  continue;
 
                 ReadFile(fnames[0], year, cnn, fileNum);
             }
         }
 
+        private static void TeamLogs(string line, string fileName, int lineNum, MySqlConnection cnn, int fileNum, int year)
+        {
+            //if the line doesn't describe a standard team event.
+            string[] tags = { "edx.team.activity_updated", "edx.team.created", "edx.team.deleted" };
+            //If the source is browser, the log will be all messed up and not usable. 
+            if (!(line.Contains(tags[0]) || line.Contains(tags[1]) || line.Contains(tags[2])))
+                return;
+            try
+            {
+
+                BasicTeam teamLog = BuildingObjects.BuildTrackingObjectTeamEvent(line);
+                if (teamLog.teamEvent.team_id.Length < 4)
+                {
+                    Console.WriteLine(teamLog);
+                    Console.WriteLine(line);
+                    Console.ReadLine();
+                }
+                AddToTable.AddRowToBasicTeamTable(cnn, teamLog);
+            }
+            catch (MySqlException ex)
+            {
+                int result = ex.Number;
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(line);
+                Console.ReadLine();
+                //these should be all the numbers that can result for a connection error. 
+                //not sure wtf 0 is, but its what happens when I unplug the ethernet cable.
+                if (result == 53 || result == -2 || result == 2 || result == -1 || result == 0)
+                {
+                    //log where the break is and then exit. 
+                    DeadConnectionWrite(fileNum, fileName, line, lineNum);
+                }
+                WriteLogToFile(year, fileNum, line, lineNum, ex, "PollLogs");
+            }
+            catch (Exception ex)
+            {
+                WriteLogToFile(year, fileNum, line, lineNum, ex, "PollLogs");
+            }
+        }
+
+        private static void PollLogs(string line, string fileName, int lineNum, MySqlConnection cnn, int fileNum, int year)
+        {
+            //if the line doesn't describe a problem event.
+            string[] tags = {"\"xblock.poll.submitted\""};
+            //If the source is browser, the log will be all messed up and not usable. 
+            if (!(line.Contains(tags[0])))
+                return;
+
+            try
+            {
+
+                PollSubmit poll = BuildingObjects.BuildTrackingObjectPollEvent(line);
+                
+                AddToTable.AddRowToPollSubmitTable(cnn, poll);
+            }
+            catch (MySqlException ex)
+            {
+                int result = ex.Number;
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(line);
+                Console.ReadLine();
+                //these should be all the numbers that can result for a connection error. 
+                //not sure wtf 0 is, but its what happens when I unplug the ethernet cable.
+                if (result == 53 || result == -2 || result == 2 || result == -1 || result == 0)
+                {
+                    //log where the break is and then exit. 
+                    DeadConnectionWrite(fileNum, fileName, line, lineNum);
+                }
+                WriteLogToFile(year, fileNum, line, lineNum, ex, "PollLogs");
+            }
+            catch (Exception ex)
+            {
+                WriteLogToFile(year, fileNum, line, lineNum, ex, "PollLogs");
+            }
+        }
 
         private static void VideoLogs(string line, string fileName, int lineNum, MySqlConnection cnn, int fileNum, int year)
         {
@@ -236,7 +427,7 @@ namespace ConsoleApplication2
 
         private static void DeadConnectionWrite(int fileNum, string fileName, string line, int lineNum)
         {
-            string logFile1 = @"C:\Users\mlyman2\Documents\Edx\Research\DeadConnectionDetails.txt";
+            string logFile1 = @"C:\Users\mlyman2\Documents\Edx\Research\ErrorLogs\DeadConnectionDetails.txt";
             using (StreamWriter wr = File.AppendText(logFile1))
             {
                 wr.WriteLine("**********************");
@@ -292,11 +483,10 @@ namespace ConsoleApplication2
             try
             {
                 ProblemCheck problem = BuildingObjects.BuildTrackingObjectProblem(line);
-                //Console.WriteLine(line);
-                //Console.ReadLine();
+
                 if (EVENT_TYPE.Equals("Problem_Submissions"))
                 {
-                    AddToTable.AddRowToProblemSubmissionTable(cnn, problem);
+                    //AddToTable.AddRowToProblemSubmissionTable(cnn, problem);
                     AddToTable.AddRowToQuestionSubmissionTable(cnn, problem);
                 }
                 else if (EVENT_TYPE.Equals("Problem_Definitions"))
@@ -389,6 +579,7 @@ namespace ConsoleApplication2
             }
             catch (Exception ex)
             {
+                Console.WriteLine(line);
                 WriteLogToFile(year, fileNum, line, ex, "discussionLogs");
             }
         }
@@ -447,9 +638,9 @@ namespace ConsoleApplication2
             }
         }
 
-        private static void WriteLogToFile(int year, int fileNum, string line, int lineNum, Exception ex, string filename)
+        internal static void WriteLogToFile(int year, int fileNum, string line, int lineNum, Exception ex, string filename)
         {
-            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\" + filename + year + ".txt";
+            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\ErrorLogs\" + filename + year + ".txt";
             using (StreamWriter wr = File.AppendText(logFile))
             {
                 wr.WriteLine("File number " + fileNum);
@@ -461,7 +652,7 @@ namespace ConsoleApplication2
 
         private static void WriteLogToFile(int year, int fileNum, string line, Exception ex, string filename)
         {
-            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\"+filename + year + ".txt";
+            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\ErrorLogs\"+filename + year + ".txt";
             using (StreamWriter wr = File.AppendText(logFile))
             {
                 wr.WriteLine("File number " + fileNum);
@@ -472,7 +663,7 @@ namespace ConsoleApplication2
 
         private static void writeToLogFile(int year, int fileNum, TrackingLogWithContext tl, Exception ex)
         {
-            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\badLogs" + year + ".txt";
+            string logFile = @"C:\Users\mlyman2\Documents\Edx\Research\ErrorLogs\badLogs" + year + ".txt";
             using (StreamWriter wr = File.AppendText(logFile))
             {
                 wr.WriteLine("File number " + fileNum);
@@ -480,8 +671,8 @@ namespace ConsoleApplication2
             }
             Console.WriteLine(ex.Message);
             Console.WriteLine(tl.toString());
+            //Console.ReadLine();
         }
 
-        
     }
 }

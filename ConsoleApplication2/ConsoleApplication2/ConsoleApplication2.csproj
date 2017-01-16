@@ -42,6 +42,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Web.DynamicData" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -50,13 +51,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddToTable.cs" />
     <Compile Include="AllLogEvents.cs" />
     <Compile Include="BuildingObjects.cs" />
     <Compile Include="Course.cs" />
+    <Compile Include="MongoDiscussionData.cs" />
+    <Compile Include="PollEvents.cs" />
     <Compile Include="ProblemEvents.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SearchEvent.cs" />
+    <Compile Include="DiscussionEvents.cs" />
+    <Compile Include="TeamEvents.cs" />
     <Compile Include="VideoEvents.cs" />
   </ItemGroup>
   <ItemGroup>
