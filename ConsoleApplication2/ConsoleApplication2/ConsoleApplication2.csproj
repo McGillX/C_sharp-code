@@ -54,7 +54,9 @@
     <Compile Include="AddToTable.cs" />
     <Compile Include="AllLogEvents.cs" />
     <Compile Include="BuildingObjects.cs" />
+    <Compile Include="Cohorts.cs" />
     <Compile Include="Course.cs" />
+    <Compile Include="DragAndDropEvents.cs" />
     <Compile Include="MongoDiscussionData.cs" />
     <Compile Include="PollEvents.cs" />
     <Compile Include="ProblemEvents.cs" />
@@ -66,7 +68,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="App1.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AppSettings.txt" />
+    <Content Include="TextFile1.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

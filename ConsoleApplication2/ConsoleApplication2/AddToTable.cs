@@ -56,10 +56,78 @@ namespace ConsoleApplication2
             return input;
         }
 
+        internal static void AddRowToDragAndDropTable(MySqlConnection mcon, DragAndDropItemDropped drop, DragAndDropItemLifted lift, DragAndDropLoad load)
+        {
+            string tableName = "drag_and_drop";
+            //all drag and drop events have the fields below.
+            string query = "INSERT INTO " + tableName + "(event_type, user_id, module_id, time_event_emitted, course_id";
+            if (lift != null)
+            {
+                string m_id = getDragAndDropId(lift.context.path);
+                query += ", item_id) VALUES('" + lift.event_type + "', " + lift.context.userID + ", '" + m_id + "', '" + lift.time.Split('+')[0] +
+                    "', '" + lift.context.courseID + "', '" + lift.liftEvent.id + "');";
+            }
+            else if (drop != null)
+            {
+                int cor = drop.dropEvent.correctness ? 1 : 0;
+                string m_id = getDragAndDropId(drop.context.path);
+        
+                query += ", item_id, item_name, correctness, location_name, location_id) VALUES('" + drop.event_type + "', " + drop.context.userID + ", '" + m_id + "', '" + drop.time.Split('+')[0] +
+                    "', '" + drop.context.courseID + "', '" + drop.dropEvent.id + "', '" + drop.dropEvent.id_name + "', " + cor +
+                    ", '" + drop.dropEvent.loc_name + "', '" + drop.dropEvent.loc_id + "');";
+               
+            }
+            else if (load != null)
+            {
+                string m_id = getDragAndDropId(load.context.path);
+                query += ") VALUES('" + load.event_type + "', " + load.context.userID + ", '" + m_id + "', '" + load.time.Split('+')[0] +
+                    "', '" + load.context.courseID + "');";
+            }
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+        internal static void AddRowToCohortsTables(MySqlConnection mcon, CohortLog cLog)
+        {
+            string event_type = cLog.event_type;
+            string tableName = "cohort_events";
+            string query = "INSERT INTO ";
+            if (event_type.Equals("edx.cohort.created"))
+            {
+                tableName = "cohorts";
+                query += tableName + "(id, original_name, time_cohort_created, course_id)";
+                query += "VALUES( " + cLog.cEvent.cohort_id+ ", '" + cLog.cEvent.cohortName + "', '" + cLog.time.Split('+')[0] + "', '" + cLog.context.courseID + "');";
+            }
+            else
+            {
+                query += tableName + "(cohort_id, user_id, event_type, time_event_emitted, course_id)";
+                query += "VALUES( " + cLog.cEvent.cohort_id + ", " + cLog.cEvent.uID + ", '" + cLog.event_type + "', '" + cLog.time.Split('+')[0] + "', '" + cLog.context.courseID + "');";
+            }
+            MySqlCommand cmd = new MySqlCommand(query, mcon);
+            cmd.ExecuteNonQuery();
+        }
+
+
+        private static string getDragAndDropId(string path)
+        {
+            string[] pieces = path.Split('/');
+            string code = "drag-and-drop-v2";
+            string id = "";
+            foreach(string s in pieces)
+            {
+                if (s.Contains(code))
+                {
+                    id = s;
+                    break;
+                }
+                    
+            }
+            return id;
+        }
 
         internal static void AddRowToCourseModuleTable(MySqlConnection mcon, BaseCourseModule log)
         {
-            string tableName = "Course_Module";
+            string tableName = "course_module";
             string query = "INSERT INTO " + tableName + "(id, category, display_name, start_date, end_date, due_date, format, graded, parent_course_module_id)";
 
             string displayName = EscapeAllSpecialChars(log.mData.displayName);

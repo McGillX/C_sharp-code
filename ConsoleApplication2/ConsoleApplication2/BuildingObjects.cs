@@ -125,13 +125,49 @@ namespace ConsoleApplication2
             return results;
         }
 
-
         internal static DiscussionVote BuildTrackingObjectDiscussionVote(string line)
         {
             DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DiscussionVote));
 
             MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
             DiscussionVote dataObject = serializer.ReadObject(ms) as DiscussionVote;
+            return dataObject;
+        }
+
+        internal static CohortLog BuildTrackingObjectCohortEvent(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(CohortLog));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            CohortLog dataObject = serializer.ReadObject(ms) as CohortLog;
+            return dataObject;
+        }
+
+
+internal static DragAndDropItemDropped BuildTrackingObjectItemDrop(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DragAndDropItemDropped));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            DragAndDropItemDropped dataObject = serializer.ReadObject(ms) as DragAndDropItemDropped;
+            return dataObject;
+        }
+
+        internal static DragAndDropItemLifted BuildTrackingObjectItemLift(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DragAndDropItemLifted));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            DragAndDropItemLifted dataObject = serializer.ReadObject(ms) as DragAndDropItemLifted;
+            return dataObject;
+        }
+
+        internal static DragAndDropLoad BuildTrackingObjectDragLoading(string line)
+        {
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DragAndDropLoad));
+
+            MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(line));
+            DragAndDropLoad dataObject = serializer.ReadObject(ms) as DragAndDropLoad;
             return dataObject;
         }
 

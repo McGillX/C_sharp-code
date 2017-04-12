@@ -1,0 +1,43 @@
+﻿//Preface any personal notes with //
+//Options for CHOICE:
+//test connection - to test the database connection
+//logs - to populate tables from the tracking logs
+//discussion dump - to read in the .mongo discussion data
+//course structure - to read in the JSON course structure files
+CHOICE = test connection
+//
+//Options for EVENT_TYPE:
+//None - log_dump
+//Discussion - forum_searched, forum_text_created, forum_text_vote
+//Video - all video logs (cc, transcript, seek, play, etc).
+//Problem_Definitions - do this before submissions :)
+//Problem_Submissions - for now, just problem_check
+//Polls - for polls and surveys submission. 
+//Team - for team events. 
+//DragAndDrop - for the new drag and drop (v2 only). 
+//Cohort - for cohort events (two tables: cohort created, and add/remove user from cohort)
+EVENT_TYPE = Cohort
+//PATH_LOCATION is the folder containing the tracking logs (tracking logs can be in subfolders - that's okay)
+//Must be set for CHOICE value of logs
+PATH_LOCATION = 
+//DISCUSSION_PATH is the folder containing the -prod.mongo MONGO files
+//must be set for CHOICE value of discussion dump
+DISCUSSION_PATH = C:\\Users\\mlyman2\\Documents\\Edx\\Research\\DiscussionLogDumps
+//COURSE_STRUCTURE_PATH is the folder containing the McGillX-........-course_structure-prod-analytics JSON files
+//must be set for a CHOICE value of course structure
+COURSE_STRUCTURE_PATH = C:\\Users\\mlyman2\\Documents\\Edx\\Research\\CourseStructureDumps
+//must contain at least one year. Separate years with commas
+YEARS = 2016, 2017
+//If the connection died mid-upload, set the three values below.
+//1) Find the DeadConnections file (location set by DEAD_CONNECTION_FILE below)
+//2) Find the name of the last file read, and last line read
+//3) Set those values below, and set LOAD_FROM_CRASH as true
+//4) Remember to reset LOAD_FROM_CRASH to false when done!
+LOAD_FROM_CRASH = false
+LAST_LINE = 0
+LAST_FILE = 
+//The full path (including filename) of where crash details are written
+DEAD_CONNECTION_FILE = C:\\Users\\mlyman2\\Documents\\Edx\\Research\\DeadConnectionDetails.txt
+//The full path (no filename) of where all other errors are written. It is normal for every command to raise a few errors (edx is often inconsistent)
+//If a file of over 10kb is created, something might be going wrong.
+ERROR_LOGS_LOCATION = C:\\Users\\mlyman2\\Documents\\Edx\\Research\\ErrorLogs\\

@@ -61,7 +61,7 @@ namespace ConsoleApplication2
 
         public override string ToString()
         {
-            return courseID + " " + userID;
+            return courseID + " " + userID + " " +path;
         }
     }
 
